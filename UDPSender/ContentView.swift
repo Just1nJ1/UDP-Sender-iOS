@@ -49,6 +49,9 @@ struct ContentView: View {
                 }
             }
             .padding()
+            HStack {
+                Spacer()
+            }
             ScrollView(.vertical) {
                 Text("\(log_message)")
             }
@@ -111,8 +114,10 @@ struct ContentView: View {
             } else {
                 NSLog("Data has been sent")
                 connection!.receiveMessage { (data, context, isComplete, error) in
-                    guard let data = data else { return }
-                    NSLog("Received message: " + String(decoding: data, as: UTF8.self))
+                    guard let data = data else {
+                        return
+                    }
+                    log_message = String(decoding: data, as: UTF8.self)
                 }
             }
         }))
