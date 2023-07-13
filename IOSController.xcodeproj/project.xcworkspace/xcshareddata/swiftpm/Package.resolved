@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "mobile-ios-ml",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SchweizerischeBundesbahnen/mobile-ios-ml.git",
+      "state" : {
+        "revision" : "44f74ec187e433ae55dec50f3bbc88ce3c3cf81c",
+        "version" : "1.0.1"
+      }
+    }
+  ],
+  "version" : 2
+}

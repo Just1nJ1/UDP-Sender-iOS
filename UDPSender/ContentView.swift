@@ -7,54 +7,244 @@
 
 import SwiftUI
 import Network
+import SBBML
 
 struct ContentView: View {
-    @State var ip_address: String = "127.0.0.1"
+    @State var ip_address: String = "10.236.136.102"
     @State var port_number: String = "6666"
     @State var message: String = "Hello World!"
     @State var connection: NWConnection?
     @State var is_connected: Bool = false
     @State var log_message: String = "Disconnected"
+    @State var action_view: Bool = false
+    @State var period: Bool = true
+    
+    @State var pressing_up: Bool = false
+    @State var pressing_down: Bool = false
+    @State var pressing_left: Bool = false
+    @State var pressing_right: Bool = false
+    @State var pressing_lift: Bool = false
+    @State var pressing_drop: Bool = false
+    
+    @State var start_detection: Bool = false
+    @State var sending: Bool = false
+    
+    var object_detection_view_model: DetectedObjectsViewModel
+    
+    @ObservedObject var view_model: iOSControllerViewModel
+    
+    @State var timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    
     var body: some View {
-        VStack {
-            LazyVGrid (columns: [GridItem(spacing: 50, alignment: .trailing), GridItem()]) {
-                Text("IP Address:")
-                TextField("IP Address", text: $ip_address)
-                    .frame(maxWidth: 200)
-                    .background(Color.gray)
-                Text("Port:")
-                TextField("Port", text: $port_number)
-                    .frame(maxWidth: 200)
-                    .background(Color.gray)
-                    .keyboardType(.numberPad)
-                Text("Message:")
-                TextField("Message", text: $message)
-                    .frame(maxWidth: 200)
-                    .background(Color.gray)
-                if !is_connected {
-                    Button("Connect") {
-                        is_connected = true
-                        udp_connect()
+        ZStack {
+            if start_detection {
+                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model)
+//                let sorted = object_detection_view_model.detectedObjects.sorted(by: { A, B in
+//                    A.confidence > B.confidence
+//                })
+//                if let target = sorted.first {
+//                    view_model.model.set_value(axis: .x, value: Float(target.rectInPreviewLayer.midX))
+//                    view_model.model.set_value(axis: .y, value: Float(target.rectInPreviewLayer.midY))
+//                    view_model.model.set_value(axis: .z, value: target.depth)
+//
+//                }
+            }
+            VStack {
+                LazyVGrid (columns: [GridItem(spacing: 50, alignment: .trailing), GridItem()]) {
+                    Group {
+                        Text("IP Address:")
+                        TextField("IP Address", text: $ip_address)
+                            .frame(maxWidth: 200)
+                            .background(Color.gray)
+                            .submitLabel(.continue)
+                        Text("Port:")
+                        TextField("Port", text: $port_number)
+                            .frame(maxWidth: 200)
+                            .background(Color.gray)
+                            .keyboardType(.numberPad)
+                        Text("Message:")
+                        TextField("Message", text: $message)
+                            .frame(maxWidth: 200)
+                            .background(Color.gray)
+                        if !is_connected {
+                            Button("Connect") {
+                                is_connected = true
+                                udp_connect()
+                            }
+                        } else {
+                            Button("Disconnect") {
+                                is_connected = false
+                                udp_disconnect()
+                            }
+                        }
                     }
-                } else {
-                    Button("Disconnect") {
-                        is_connected = false
-                        udp_disconnect()
+                    Group {
+                        Button("Send") {
+                            udp_send(message.data(using: .utf8)!)
+                        }
+                        Text("X Coordinate")
+                        VStack {
+                            Slider(value: Binding(get: {
+                                view_model.model.x_cart_coord
+                            }, set: { (newVal) in
+                                view_model.model.x_cart_coord = newVal
+                                if period {
+                                    period = false
+                                    udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
+                                    period_timer()
+                                }
+                            }), in: -120...120) { _ in
+                                udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
+                                period = true
+                            }
+//                            Slider(value: $view_model.model.x_cart_coord)
+                            Text("\(view_model.model.x_cart_coord)")
+                        }
+                        Text("Y Coordinate")
+                        VStack {
+                            Slider(value: Binding(get: {
+                                view_model.model.y_cart_coord
+                            }, set: { (newVal) in
+                                view_model.model.y_cart_coord = newVal
+                                if period {
+                                    period = false
+                                    udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
+                                    period_timer()
+                                }
+                            }), in: -120...120) { _ in
+                                udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
+                                period = true
+                            }
+//                            Slider(value: $view_model.model.y_cart_coord)
+                            Text("\(view_model.model.y_cart_coord)")
+                        }
+                        Text("Z Coordinate")
+                        VStack {
+                            Slider(value: Binding(get: {
+                                view_model.model.z_cart_coord
+                            }, set: { (newVal) in
+                                view_model.model.z_cart_coord = newVal
+                                if period {
+                                    period = false
+                                    udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
+                                    period_timer()
+                                }
+                            }), in: -120...120) { _ in
+                                period = true
+                            }
+//                            Slider(value: $view_model.model.z_cart_coord)
+                            Text("\(view_model.model.z_cart_coord)")
+                        }
+                        Button(start_detection ? "End Detection" : "Start Detection") {
+                            start_detection.toggle()
+                        }
+                    }
+                    .opacity(is_connected ? 1 : 0)
+                }
+                .padding()
+                HStack {
+                    Spacer()
+                }
+                ScrollView(.vertical) {
+                    Text("\(log_message)")
+                        .onReceive(timer) { _ in
+                            if pressing_up {
+                                NSLog("Up")
+                                view_model.model.increment(axis: .x, increment: 0.1)
+                            }
+                            if pressing_down {
+                                NSLog("Down")
+                                view_model.model.increment(axis: .x, increment: -0.1)
+                            }
+                            if pressing_left {
+                                NSLog("Left")
+                                view_model.model.increment(axis: .y, increment: -0.1)
+                            }
+                            if pressing_right {
+                                NSLog("Right")
+                                view_model.model.increment(axis: .y, increment: 0.1)
+                            }
+                            if pressing_lift {
+                                NSLog("Lift")
+                                view_model.model.increment(axis: .z, increment: 0.1)
+                            }
+                            if pressing_drop {
+                                NSLog("Drop")
+                                view_model.model.increment(axis: .z, increment: -0.1)
+                            }
+                            sending = sending || pressing_up || pressing_down || pressing_left || pressing_right || pressing_lift || pressing_drop
+                            if sending && period && connection?.state == NWConnection.State.ready {
+                                udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
+                                sending = false
+                                period = false
+                                period_timer()
+                            }
+                        }
+                }
+                
+                ForEach(1..<4) { i in
+                    HStack {
+                        ForEach(1..<6) { j in
+                            if (i == 1 && j == 2) {
+                                Image(systemName: "arrow.up.square")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                        pressing_up = current_state
+                                    })
+                            } else if (i == 1 && j == 5) {
+                                Image(systemName: "arrow.up.square")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                        pressing_lift = current_state
+                                    })
+                            } else if (i == 2 && j == 1) {
+                                Image(systemName: "arrow.left.square")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                        pressing_left = current_state
+                                    })
+                            } else if (i == 2 && j == 3) {
+                                Image(systemName: "arrow.right.square")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                        pressing_right = current_state
+                                    })
+                            } else if (i == 3 && j == 2) {
+                                Image(systemName: "arrow.down.square")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                        pressing_down = current_state
+                                    })
+                            } else if (i == 3 && j == 5) {
+                                Image(systemName: "arrow.down.square")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                        pressing_drop = current_state
+                                    })
+                            } else {
+                                Rectangle()
+                                    .aspectRatio(1, contentMode: .fit)
+//                                    .foregroundColor(.white)
+                                    .opacity(0)
+                            }
+                        }
+                        
                     }
                 }
-                if is_connected {
-                    Button("Send") {
-                        udp_send(message.data(using: .utf8)!)
-                    }
-                }
             }
-            .padding()
-            HStack {
-                Spacer()
-            }
-            ScrollView(.vertical) {
-                Text("\(log_message)")
-            }
+            .padding(.all)
+        }
+    }
+    
+    func period_timer() -> (){
+        DispatchQueue.main.asyncAfter(deadline: .now() + view_model.model.message_interval) {
+            period = true
         }
     }
     
@@ -115,8 +305,10 @@ struct ContentView: View {
                 NSLog("Data has been sent")
                 connection!.receiveMessage { (data, context, isComplete, error) in
                     guard let data = data else {
+                        NSLog("No feedback")
                         return
                     }
+                    NSLog(String(decoding: data, as: UTF8.self))
                     log_message = String(decoding: data, as: UTF8.self)
                 }
             }
@@ -124,8 +316,32 @@ struct ContentView: View {
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
+
+struct ObjectDetectionView: View {
+
+    @ObservedObject var detectedObjectsViewModel: DetectedObjectsViewModel
+
+    var body: some View {
+        CameraStreamView(objectDetectionService: detectedObjectsViewModel.objectDetectionService)
+            .overlay(
+                Group {
+                    ForEach(detectedObjectsViewModel.detectedObjects) { detectedObject in
+//                    let sorted = detectedObjectsViewModel.detectedObjects.sorted(by: { A, B in
+//                        A.confidence > B.confidence
+//                    })
+//                    if let detectedObject = sorted.first {
+                        Rectangle()
+                            .strokeBorder(Color.white, lineWidth: 4)
+                            .frame(width: detectedObject.rectInPreviewLayer.width, height: detectedObject.rectInPreviewLayer.height)
+                            .position(x: detectedObject.rectInPreviewLayer.midX, y: detectedObject.rectInPreviewLayer.midY)
+                        Text("\(detectedObject.confidence)")
+                            .position(x: detectedObject.rectInPreviewLayer.midX, y: detectedObject.rectInPreviewLayer.midY)
+//                        Text("\(detectedObject.depth!)")
+//                            .position(x: detectedObject.rectInPreviewLayer.midX, y: detectedObject.rectInPreviewLayer.midY + 20)
+                        Text("\(detectedObject.label)")
+                            .position(x: detectedObject.rectInPreviewLayer.midX, y: detectedObject.rectInPreviewLayer.midY - 20)
+                    }
+                }
+            )
     }
 }
