@@ -8,9 +8,9 @@
 import Foundation
 
 struct iOSControllerModel {
-    var x_cart_coord: Float = 0
+    var x_cart_coord: Float = 198.67
     var y_cart_coord: Float = 0
-    var z_cart_coord: Float = 0
+    var z_cart_coord: Float = 230.72
     var message_interval: Double = 0.5
     
     enum axises: Int {
@@ -23,40 +23,51 @@ struct iOSControllerModel {
         switch axis {
         case .x:
             x_cart_coord += increment
-            if -120 > x_cart_coord {
-                x_cart_coord = -120
-            } else if x_cart_coord > 120 {
-                x_cart_coord = 120
+            if 133.5 > x_cart_coord {
+                x_cart_coord = 133.5
+            } else if x_cart_coord > 262.8 {
+                x_cart_coord = 262.8
             }
         case .y:
             y_cart_coord += increment
-            if -120 > y_cart_coord {
-                y_cart_coord = -120
-            } else if y_cart_coord > 120 {
-                y_cart_coord = 120
+            if -144.1 > y_cart_coord {
+                y_cart_coord = -144.1
+            } else if y_cart_coord > 144.1 {
+                y_cart_coord = 144.1
             }
         case .z:
             z_cart_coord += increment
-            if -120 > z_cart_coord {
-                z_cart_coord = -120
-            } else if z_cart_coord > 120 {
-                z_cart_coord = 120
+            if 11.1 > z_cart_coord {
+                z_cart_coord = 11.1
+            } else if z_cart_coord > 284.5 {
+                z_cart_coord = 284.5
             }
         }
     }
     
     mutating func set_value(axis: axises, value: Float) -> Void {
-        var val = value
-        if value > 120 {
-            val = 120
-        } else if value < -120 {
-            val = -120
-        }
-        
         switch axis {
-        case .x: x_cart_coord = val
-        case .y: y_cart_coord = val
-        case .z: z_cart_coord = val
+        case .x:
+            x_cart_coord = value
+            if 133.5 > x_cart_coord {
+                x_cart_coord = 133.5
+            } else if x_cart_coord > 262.8 {
+                x_cart_coord = 262.8
+            }
+        case .y:
+            y_cart_coord = value
+            if -144.1 > y_cart_coord {
+                y_cart_coord = -144.1
+            } else if y_cart_coord > 144.1 {
+                y_cart_coord = 144.1
+            }
+        case .z:
+            z_cart_coord = value
+            if 11.1 > z_cart_coord {
+                z_cart_coord = 11.1
+            } else if z_cart_coord > 284.5 {
+                z_cart_coord = 284.5
+            }
         }
     }
 }

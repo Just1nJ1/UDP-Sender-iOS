@@ -40,6 +40,8 @@ struct ContentView: View {
     @State var start_gripping: Bool = false
     @State var target_pos: CGRect = CGRectNull
     
+    @State var is_detecting: Bool = false
+    
     var object_detection_view_model: DetectedObjectsViewModel
     
     @ObservedObject var view_model: iOSControllerViewModel
@@ -48,8 +50,8 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            if object_detection_view_model.is_detecting {
-                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, target_pos: $target_pos, with_detection: true)
+            if is_detecting {
+                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, target_pos: $target_pos, content_view: Binding(get: {self}, set: {newval in }), with_detection: true)
 //                let sorted = object_detection_view_model.detectedObjects.sorted(by: { A, B in
 //                    A.confidence > B.confidence
 //                })
@@ -61,7 +63,7 @@ struct ContentView: View {
 //                }
             }
             if initialization {
-                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, target_pos: $target_pos, with_detection: false)
+                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, target_pos: $target_pos, content_view: Binding(get: {self}, set: {newval in }), with_detection: false)
             }
             GeometryReader { geometry in
                 VStack {
@@ -108,7 +110,7 @@ struct ContentView: View {
                                         udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
                                         period_timer()
                                     }
-                                }), in: -120...120) { _ in
+                                }), in: 133.5...262.8) { _ in
                                     udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
                                     period = true
                                 }
@@ -126,7 +128,7 @@ struct ContentView: View {
                                         udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
                                         period_timer()
                                     }
-                                }), in: -120...120) { _ in
+                                }), in: -144.1...144.1) { _ in
                                     udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
                                     period = true
                                 }
@@ -144,7 +146,7 @@ struct ContentView: View {
                                         udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
                                         period_timer()
                                     }
-                                }), in: -120...120) { _ in
+                                }), in: 11.1...284.5) { _ in
                                     period = true
                                 }
                                 //                            Slider(value: $view_model.model.z_cart_coord)
@@ -167,8 +169,8 @@ struct ContentView: View {
                                     robot_pos_br_y = view_model.model.y_cart_coord
                                 }
                             }
-                            Button(object_detection_view_model.is_detecting ? "End Detection" : "Start Detection") {
-                                object_detection_view_model.is_detecting.toggle()
+                            Button(is_detecting ? "End Detection" : "Start Detection") {
+                                is_detecting.toggle()
                             }
                         }
                         .opacity(is_connected ? 1 : 0)
@@ -352,9 +354,17 @@ struct ContentView: View {
         let robot_x = Float(pos.midX) * robot_camera_x_ratio + robot_pos_tl_x
         let robot_y = Float(pos.midY) * robot_camera_y_ratio + robot_pos_tl_y
         let robot_z: Float = 50 // TODO: Depth detection is needed
+        view_model.model.x_cart_coord = robot_x
+        view_model.model.y_cart_coord = robot_y
+        view_model.model.z_cart_coord = robot_z
         move_cartesian(x: robot_x, y: robot_y, z: robot_z)
-        suction_cup_on()
-        move_cartesian(x: robot_x, y: robot_y, z: robot_z + 50)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            suction_cup_on()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                view_model.model.z_cart_coord = robot_z + 50
+                move_cartesian(x: robot_x, y: robot_y, z: robot_z + 50)
+            }
+        }
     }
     
     func suction_cup_on() -> () {
@@ -370,6 +380,7 @@ struct ContentView: View {
 struct ObjectDetectionView: View {
     @ObservedObject var detectedObjectsViewModel: DetectedObjectsViewModel
     @Binding var target_pos: CGRect
+    @Binding var content_view: ContentView // TODO: this is for selecting detected object purpose. Should be removed
     @State var with_detection: Bool
     var body: some View {
         if with_detection {
@@ -386,11 +397,14 @@ struct ObjectDetectionView: View {
                                 .strokeBorder(Color.white, lineWidth: 4)
                                 .frame(width: pos.width, height: pos.height)
                                 .position(x: pos.midX, y: pos.midY)
-                            Button(""){
+                            Button("|||||||||||||||||||||"){
                                 target_pos = pos
+                                content_view.grip(pos: pos)
                             }
                             .frame(width: pos.width, height: pos.height)
                             .position(x: pos.midX, y: pos.midY)
+                            .zIndex(100)
+                            .foregroundColor(.black)
                             Text("\(detectedObject.confidence)")
                                 .position(x: pos.midX, y: pos.midY)
                             //                        Text("\(detectedObject.depth!)")

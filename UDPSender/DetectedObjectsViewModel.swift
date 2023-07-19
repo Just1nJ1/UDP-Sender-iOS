@@ -16,7 +16,7 @@ class DetectedObjectsViewModel: ObservableObject {
 
     var objectDetectionService: ObjectDetectionService
     
-    @Published var is_detecting: Bool = false
+//    @Published var is_detecting: Bool = false
     
     init() {
         let modelFileName = "converted_model_640_detection_float32"  //
