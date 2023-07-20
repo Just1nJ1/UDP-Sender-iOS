@@ -6,18 +6,126 @@
 //
 
 import SwiftUI
-import Network
 import SBBML
+import Network
 
 struct ContentView: View {
-    @State var ip_address: String = "10.236.136.102"
-    @State var port_number: String = "6666"
-    @State var message: String = "Hello World!"
-    @State var connection: NWConnection?
-    @State var is_connected: Bool = false
-    @State var log_message: String = "Disconnected"
     @State var action_view: Bool = false
-    @State var period: Bool = true
+    
+    
+    @ObservedObject var object_detection_view_model: DetectedObjectsViewModel
+    @ObservedObject var view_model: iOSControllerViewModel
+    
+//    let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+    
+    var body: some View {
+//        ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, controllerViewModel: view_model, with_detection: true)
+//        InitializationView(detectedObjectsViewModel: object_detection_view_model, controllerViewModel: view_model)
+//        ControllingView(detectedObjectsViewModel: object_detection_view_model, controllerViewModel: view_model)
+        if view_model.initialization {
+            InitializationView(detectedObjectsViewModel: object_detection_view_model, controllerViewModel: view_model)
+        } else if view_model.is_detecting {
+            ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, controllerViewModel: view_model, with_detection: true)
+        } else {
+            ControllingView(detectedObjectsViewModel: object_detection_view_model, controllerViewModel: view_model)
+        }
+    }
+}
+
+
+struct ObjectDetectionView: View {
+    @ObservedObject var detectedObjectsViewModel: DetectedObjectsViewModel
+    @ObservedObject var controllerViewModel: iOSControllerViewModel
+    @State var with_detection: Bool
+    var body: some View {
+        if with_detection {
+            ZStack {
+                CameraStreamView(objectDetectionService: detectedObjectsViewModel.objectDetectionService)
+                    .overlay(
+                        Group {
+                            ForEach(detectedObjectsViewModel.detectedObjects) { detectedObject in
+                                let pos = detectedObject.rectInPreviewLayer
+                                Rectangle()
+                                    .strokeBorder(Color.white, lineWidth: 4)
+                                    .frame(width: pos.width, height: pos.height)
+                                    .position(x: pos.midX, y: pos.midY)
+                                Text("\(detectedObject.confidence)")
+                                    .position(x: pos.midX, y: pos.midY)
+                                Text("\(detectedObject.label)")
+                                    .position(x: pos.midX, y: pos.midY - 20)
+                                Text("\(pos.midX), \(pos.midY)")
+                                    .position(x: pos.midX, y: pos.midY + 20)
+                            }
+                        }
+                    )
+                VStack {
+                    Spacer()
+                    HStack {
+                        Button("End Detection") {
+                            controllerViewModel.end_detection()
+                        }
+                        Spacer()
+                        Button("Picking Top 3") {
+                            let sorted = detectedObjectsViewModel.detectedObjects.sorted(by: { A, B in
+                                A.confidence > B.confidence
+                            })
+                            let positions = sorted.map{$0.rectInPreviewLayer}
+                            controllerViewModel.picking_top_n(n: 3, objects: positions)
+                        }
+                    }
+                }
+            }
+        } else {
+            CameraStreamView(objectDetectionService: detectedObjectsViewModel.objectDetectionService)
+        }
+    }
+}
+
+struct InitializationView: View {
+    @ObservedObject var detectedObjectsViewModel: DetectedObjectsViewModel
+    @ObservedObject var controllerViewModel: iOSControllerViewModel
+    var body: some View {
+        ZStack {
+            ObjectDetectionView(detectedObjectsViewModel: detectedObjectsViewModel, controllerViewModel: controllerViewModel, with_detection: false)
+            GeometryReader { geometry in
+                VStack {
+                    Button("End Initialization") {
+                        controllerViewModel.end_initialization(size: geometry.size)
+                    }
+//                    Spacer()
+                    ScrollView {
+                        VStack {
+                            Text("TL Pos: \(controllerViewModel.robot_pos_tl_x), \(controllerViewModel.robot_pos_tl_y)")
+                            Text("BR Pos: \(controllerViewModel.robot_pos_br_x), \(controllerViewModel.robot_pos_br_y)")
+                            Text("dest Pos:")
+                            ForEach (0..<controllerViewModel.dest_pos_count, id: \.self) { i in
+                                Text("\(controllerViewModel.dest_pos_x[i]), \(controllerViewModel.dest_pos_y[i]), \(controllerViewModel.dest_pos_z[i])")
+                            }
+                        }
+                    }
+                    Button("Add dest pos") {
+                        controllerViewModel.add_dest_pos()
+                    }
+                    HStack {
+                        Button("Top Left") {
+                            controllerViewModel.record_tl()
+                        }
+                        Spacer()
+                        Button("Bottom Right") {
+                            controllerViewModel.record_br()
+                        }
+                    }
+                    ArrowKeyView(detectedObjectsViewModel: detectedObjectsViewModel, controllerViewModel: controllerViewModel)
+                }
+            }
+            .padding(.all, 10.0)
+        }
+    }
+}
+
+struct ArrowKeyView: View {
+    @ObservedObject var detectedObjectsViewModel: DetectedObjectsViewModel
+    @ObservedObject var controllerViewModel: iOSControllerViewModel
     
     @State var pressing_up: Bool = false
     @State var pressing_down: Bool = false
@@ -27,397 +135,194 @@ struct ContentView: View {
     @State var pressing_drop: Bool = false
     
     @State var sending: Bool = false
-    
-    @State var initialization: Bool = false
-    
-    @State var robot_pos_tl_x: Float = 0
-    @State var robot_pos_tl_y: Float = 0
-    @State var robot_pos_br_x: Float = 0
-    @State var robot_pos_br_y: Float = 0
-    @State var robot_camera_x_ratio: Float = 0
-    @State var robot_camera_y_ratio: Float = 0
-    
-    @State var start_gripping: Bool = false
-    @State var target_pos: CGRect = CGRectNull
-    
-    @State var is_detecting: Bool = false
-    
-    var object_detection_view_model: DetectedObjectsViewModel
-    
-    @ObservedObject var view_model: iOSControllerViewModel
-    
     @State var timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
     var body: some View {
-        ZStack {
-            if is_detecting {
-                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, target_pos: $target_pos, content_view: Binding(get: {self}, set: {newval in }), with_detection: true)
-//                let sorted = object_detection_view_model.detectedObjects.sorted(by: { A, B in
-//                    A.confidence > B.confidence
-//                })
-//                if let target = sorted.first {
-//                    view_model.model.set_value(axis: .x, value: Float(target.rectInPreviewLayer.midX))
-//                    view_model.model.set_value(axis: .y, value: Float(target.rectInPreviewLayer.midY))
-//                    view_model.model.set_value(axis: .z, value: target.depth)
-//
-//                }
-            }
-            if initialization {
-                ObjectDetectionView(detectedObjectsViewModel: object_detection_view_model, target_pos: $target_pos, content_view: Binding(get: {self}, set: {newval in }), with_detection: false)
-            }
-            GeometryReader { geometry in
-                VStack {
-                    LazyVGrid (columns: [GridItem(spacing: 50, alignment: .trailing), GridItem()]) {
-                        Group {
-                            Text("IP Address:")
-                            TextField("IP Address", text: $ip_address)
-                                .frame(maxWidth: 200)
-                                .background(Color.gray)
-                                .submitLabel(.continue)
-                            Text("Port:")
-                            TextField("Port", text: $port_number)
-                                .frame(maxWidth: 200)
-                                .background(Color.gray)
-                                .keyboardType(.numberPad)
-                            Text("Message:")
-                            TextField("Message", text: $message)
-                                .frame(maxWidth: 200)
-                                .background(Color.gray)
-                            if !is_connected {
-                                Button("Connect") {
-                                    is_connected = true
-                                    udp_connect()
-                                }
-                            } else {
-                                Button("Disconnect") {
-                                    is_connected = false
-                                    udp_disconnect()
-                                }
-                            }
-                        }
-                        Group {
-                            Button("Send") {
-                                udp_send(message.data(using: .utf8)!)
-                            }
-                            Text("X Coordinate")
-                            VStack {
-                                Slider(value: Binding(get: {
-                                    view_model.model.x_cart_coord
-                                }, set: { (newVal) in
-                                    view_model.model.x_cart_coord = newVal
-                                    if period {
-                                        period = false
-                                        udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
-                                        period_timer()
-                                    }
-                                }), in: 133.5...262.8) { _ in
-                                    udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
-                                    period = true
-                                }
-                                //                            Slider(value: $view_model.model.x_cart_coord)
-                                Text("\(view_model.model.x_cart_coord)")
-                            }
-                            Text("Y Coordinate")
-                            VStack {
-                                Slider(value: Binding(get: {
-                                    view_model.model.y_cart_coord
-                                }, set: { (newVal) in
-                                    view_model.model.y_cart_coord = newVal
-                                    if period {
-                                        period = false
-                                        udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
-                                        period_timer()
-                                    }
-                                }), in: -144.1...144.1) { _ in
-                                    udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
-                                    period = true
-                                }
-                                //                            Slider(value: $view_model.model.y_cart_coord)
-                                Text("\(view_model.model.y_cart_coord)")
-                            }
-                            Text("Z Coordinate")
-                            VStack {
-                                Slider(value: Binding(get: {
-                                    view_model.model.z_cart_coord
-                                }, set: { (newVal) in
-                                    view_model.model.z_cart_coord = newVal
-                                    if period {
-                                        period = false
-                                        udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
-                                        period_timer()
-                                    }
-                                }), in: 11.1...284.5) { _ in
-                                    period = true
-                                }
-                                //                            Slider(value: $view_model.model.z_cart_coord)
-                                Text("\(view_model.model.z_cart_coord)")
-                            }
-                            Button(initialization ? "End Initialize" : "Start Initialize") {
-                                initialization.toggle()
-                                if !initialization {
-                                    robot_camera_x_ratio = (robot_pos_br_x - robot_pos_tl_x) / Float(geometry.size.width)
-                                    robot_camera_y_ratio = (robot_pos_br_y - robot_pos_tl_y) / Float(geometry.size.height)
-                                }
-                            }
-                            if initialization {
-                                Button("Top Left") {
-                                    robot_pos_tl_x = view_model.model.x_cart_coord
-                                    robot_pos_tl_y = view_model.model.y_cart_coord
-                                }
-                                Button("Bottom Right") {
-                                    robot_pos_br_x = view_model.model.x_cart_coord
-                                    robot_pos_br_y = view_model.model.y_cart_coord
-                                }
-                            }
-                            Button(is_detecting ? "End Detection" : "Start Detection") {
-                                is_detecting.toggle()
-                            }
-                        }
-                        .opacity(is_connected ? 1 : 0)
+        VStack {
+            Spacer()
+            Text("")
+                .onReceive(timer) { _ in
+                    if pressing_up {
+                        NSLog("Up")
+                        controllerViewModel.increment(axis: .x, increment: 3)
                     }
-                    .padding()
-                    HStack {
-                        Spacer()
+                    if pressing_down {
+                        NSLog("Down")
+                        controllerViewModel.increment(axis: .x, increment: -3)
                     }
-                    ScrollView(.vertical) {
-                        Text("\(log_message)")
-                            .onReceive(timer) { _ in
-                                if pressing_up {
-                                    NSLog("Up")
-                                    view_model.model.increment(axis: .x, increment: 0.1)
-                                }
-                                if pressing_down {
-                                    NSLog("Down")
-                                    view_model.model.increment(axis: .x, increment: -0.1)
-                                }
-                                if pressing_left {
-                                    NSLog("Left")
-                                    view_model.model.increment(axis: .y, increment: -0.1)
-                                }
-                                if pressing_right {
-                                    NSLog("Right")
-                                    view_model.model.increment(axis: .y, increment: 0.1)
-                                }
-                                if pressing_lift {
-                                    NSLog("Lift")
-                                    view_model.model.increment(axis: .z, increment: 0.1)
-                                }
-                                if pressing_drop {
-                                    NSLog("Drop")
-                                    view_model.model.increment(axis: .z, increment: -0.1)
-                                }
-                                sending = sending || pressing_up || pressing_down || pressing_left || pressing_right || pressing_lift || pressing_drop
-                                if sending && period && connection?.state == NWConnection.State.ready {
-                                    udp_send("M20 G90 G00 X\(view_model.model.x_cart_coord) Y\(view_model.model.y_cart_coord) Z\(view_model.model.z_cart_coord)".data(using: .utf8)!)
-                                    sending = false
-                                    period = false
-                                    period_timer()
-                                }
-                            }
+                    if pressing_left {
+                        NSLog("Left")
+                        controllerViewModel.increment(axis: .y, increment: -3)
+                    }
+                    if pressing_right {
+                        NSLog("Right")
+                        controllerViewModel.increment(axis: .y, increment: 3)
+                    }
+                    if pressing_lift {
+                        NSLog("Lift")
+                        controllerViewModel.increment(axis: .z, increment: 3)
+                    }
+                    if pressing_drop {
+                        NSLog("Drop")
+                        controllerViewModel.increment(axis: .z, increment: -3)
+                    }
+//                    sending = sending || pressing_up || pressing_down || pressing_left || pressing_right || pressing_lift || pressing_drop
+//                    if sending && !controllerViewModel.cooldown && controllerViewModel.connection?.state == NWConnection.State.ready {
+//                        controllerViewModel.update_pos()
+//                        sending = false
+//                    }
+                }
+            ForEach(1..<4) { i in
+                HStack {
+                    ForEach(1..<6) { j in
+                        if (i == 1 && j == 2) {
+                            Image(systemName: "arrow.up.square")
+                                .resizable()
+                                .scaledToFit()
+                                .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                    pressing_up = current_state
+                                })
+                        } else if (i == 1 && j == 5) {
+                            Image(systemName: "arrow.up.square")
+                                .resizable()
+                                .scaledToFit()
+                                .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                    pressing_lift = current_state
+                                })
+                        } else if (i == 2 && j == 1) {
+                            Image(systemName: "arrow.left.square")
+                                .resizable()
+                                .scaledToFit()
+                                .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                    pressing_left = current_state
+                                })
+                        } else if (i == 2 && j == 3) {
+                            Image(systemName: "arrow.right.square")
+                                .resizable()
+                                .scaledToFit()
+                                .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                    pressing_right = current_state
+                                })
+                        } else if (i == 3 && j == 2) {
+                            Image(systemName: "arrow.down.square")
+                                .resizable()
+                                .scaledToFit()
+                                .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                    pressing_down = current_state
+                                })
+                        } else if (i == 3 && j == 5) {
+                            Image(systemName: "arrow.down.square")
+                                .resizable()
+                                .scaledToFit()
+                                .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
+                                    pressing_drop = current_state
+                                })
+                        } else {
+                            Rectangle()
+                                .aspectRatio(1, contentMode: .fit)
+                                .opacity(0)
+                        }
                     }
                     
-                    ForEach(1..<4) { i in
-                        HStack {
-                            ForEach(1..<6) { j in
-                                if (i == 1 && j == 2) {
-                                    Image(systemName: "arrow.up.square")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
-                                            pressing_up = current_state
-                                        })
-                                } else if (i == 1 && j == 5) {
-                                    Image(systemName: "arrow.up.square")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
-                                            pressing_lift = current_state
-                                        })
-                                } else if (i == 2 && j == 1) {
-                                    Image(systemName: "arrow.left.square")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
-                                            pressing_left = current_state
-                                        })
-                                } else if (i == 2 && j == 3) {
-                                    Image(systemName: "arrow.right.square")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
-                                            pressing_right = current_state
-                                        })
-                                } else if (i == 3 && j == 2) {
-                                    Image(systemName: "arrow.down.square")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
-                                            pressing_down = current_state
-                                        })
-                                } else if (i == 3 && j == 5) {
-                                    Image(systemName: "arrow.down.square")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { current_state in
-                                            pressing_drop = current_state
-                                        })
-                                } else {
-                                    Rectangle()
-                                        .aspectRatio(1, contentMode: .fit)
-                                    //                                    .foregroundColor(.white)
-                                        .opacity(0)
-                                }
-                            }
-                            
-                        }
-                    }
                 }
-                .padding(.all)
             }
         }
-    }
-    
-    func period_timer() -> (){
-        DispatchQueue.main.asyncAfter(deadline: .now() + view_model.model.message_interval) {
-            period = true
-        }
-    }
-    
-    func udp_connect() -> (){
-        if connection != nil && connection?.state != .cancelled {}
-        else {
-            connection = NWConnection(host: NWEndpoint.Host(ip_address), port: NWEndpoint.Port(port_number)!, using: .udp)
-            connection!.stateUpdateHandler = { (newState) in
-                switch (newState) {
-                case .preparing:
-                    NSLog("Entered state: preparing")
-                case .ready:
-                    NSLog("Entered state: ready")
-                case .setup:
-                    NSLog("Entered state: setup")
-                case .cancelled:
-                    NSLog("Entered state: cancelled")
-                case .waiting:
-                    NSLog("Entered state: waiting")
-                case .failed:
-                    NSLog("Entered state: failed")
-                default:
-                    NSLog("Entered an unknown state")
-                }
-            }
-            
-            connection!.viabilityUpdateHandler = { (isViable) in
-                if (isViable) {
-                    NSLog("Connection is viable")
-                } else {
-                    NSLog("Connection is not viable")
-                }
-            }
-            
-            connection!.betterPathUpdateHandler = { (betterPathAvailable) in
-                if (betterPathAvailable) {
-                    NSLog("A better path is availble")
-                } else {
-                    NSLog("No better path is available")
-                }
-            }
-            
-            connection!.start(queue: .global())
-            log_message = "Connected"
-        }
-    }
-    
-    func udp_disconnect() -> (){
-        log_message = "Disconnected"
-        connection?.cancel()
-    }
-    
-    func udp_send(_ payload: Data) -> (){
-        connection!.send(content: payload, completion: .contentProcessed({ error in
-            if let error = error {
-                NSLog("Unable to process and send the data: \(error)")
-            } else {
-                NSLog("Data has been sent")
-                connection!.receiveMessage { (data, context, isComplete, error) in
-                    guard let data = data else {
-                        NSLog("No feedback")
-                        return
-                    }
-                    NSLog(String(decoding: data, as: UTF8.self))
-                    log_message = String(decoding: data, as: UTF8.self)
-                }
-            }
-        }))
-    }
-    
-    func grip(pos: CGRect) -> () {
-        let robot_x = Float(pos.midX) * robot_camera_x_ratio + robot_pos_tl_x
-        let robot_y = Float(pos.midY) * robot_camera_y_ratio + robot_pos_tl_y
-        let robot_z: Float = 50 // TODO: Depth detection is needed
-        view_model.model.x_cart_coord = robot_x
-        view_model.model.y_cart_coord = robot_y
-        view_model.model.z_cart_coord = robot_z
-        move_cartesian(x: robot_x, y: robot_y, z: robot_z)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-            suction_cup_on()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                view_model.model.z_cart_coord = robot_z + 50
-                move_cartesian(x: robot_x, y: robot_y, z: robot_z + 50)
-            }
-        }
-    }
-    
-    func suction_cup_on() -> () {
-        udp_send("M3S1000".data(using: .utf8)!)
-    }
-    
-    func move_cartesian(x: Float, y: Float, z: Float) -> () {
-        udp_send("M20 G90 G00 X\(x) Y\(y) Z\(z)".data(using: .utf8)!)
     }
 }
 
-
-struct ObjectDetectionView: View {
+struct ControllingView: View {
     @ObservedObject var detectedObjectsViewModel: DetectedObjectsViewModel
-    @Binding var target_pos: CGRect
-    @Binding var content_view: ContentView // TODO: this is for selecting detected object purpose. Should be removed
-    @State var with_detection: Bool
+    @ObservedObject var controllerViewModel: iOSControllerViewModel
+    
     var body: some View {
-        if with_detection {
-            CameraStreamView(objectDetectionService: detectedObjectsViewModel.objectDetectionService)
-                .overlay(
-                    Group {
-                        ForEach(detectedObjectsViewModel.detectedObjects) { detectedObject in
-                            //                    let sorted = detectedObjectsViewModel.detectedObjects.sorted(by: { A, B in
-                            //                        A.confidence > B.confidence
-                            //                    })
-                            //                    if let detectedObject = sorted.first {
-                            let pos = detectedObject.rectInPreviewLayer
-                            Rectangle()
-                                .strokeBorder(Color.white, lineWidth: 4)
-                                .frame(width: pos.width, height: pos.height)
-                                .position(x: pos.midX, y: pos.midY)
-                            Button("|||||||||||||||||||||"){
-                                target_pos = pos
-                                content_view.grip(pos: pos)
-                            }
-                            .frame(width: pos.width, height: pos.height)
-                            .position(x: pos.midX, y: pos.midY)
-                            .zIndex(100)
-                            .foregroundColor(.black)
-                            Text("\(detectedObject.confidence)")
-                                .position(x: pos.midX, y: pos.midY)
-                            //                        Text("\(detectedObject.depth!)")
-                            //                            .position(x: pos.midX, y: pos.midY + 20)
-                            Text("\(detectedObject.label)")
-                                .position(x: pos.midX, y: pos.midY - 20)
-                            Text("\(pos.midX), \(pos.midY)")
-                                .position(x: pos.midX, y: pos.midY + 20)
+        VStack {
+            LazyVGrid (columns: [GridItem(spacing: 50, alignment: .trailing), GridItem()]) {
+                Group {
+                    Text("IP Address:")
+                    TextField("IP Address", text: $controllerViewModel.ip_address)
+                        .frame(maxWidth: 200)
+                        .background(Color.gray)
+                        .submitLabel(.continue)
+                    Text("Port:")
+                    TextField("Port", text: $controllerViewModel.port_number)
+                        .frame(maxWidth: 200)
+                        .background(Color.gray)
+                        .keyboardType(.numberPad)
+                    Text("Message:")
+                    TextField("Message", text: $controllerViewModel.message)
+                        .frame(maxWidth: 200)
+                        .background(Color.gray)
+                    if !controllerViewModel.is_connected {
+                        Button("Connect") {
+                            controllerViewModel.is_connected = true
+                            controllerViewModel.udp_connect()
+                        }
+                    } else {
+                        Button("Disconnect") {
+                            controllerViewModel.is_connected = false
+                            controllerViewModel.udp_disconnect()
                         }
                     }
-                )
-        } else {
-            CameraStreamView(objectDetectionService: detectedObjectsViewModel.objectDetectionService)
+                }
+                Group {
+                    Button("Send") {
+                        controllerViewModel.send_message()
+                    }
+                    Text("X Coordinate")
+                    VStack {
+                        Slider(value: Binding(get: {
+                            controllerViewModel.model.x_cart_coord
+                        }, set: { (newVal) in
+                            controllerViewModel.model.x_cart_coord = newVal
+                            controllerViewModel.update_pos()
+                        }), in: 133.5...262.8) { _ in
+                            controllerViewModel.update_pos()
+                        }
+                        Text("\(controllerViewModel.model.x_cart_coord)")
+                    }
+                    Text("Y Coordinate")
+                    VStack {
+                        Slider(value: Binding(get: {
+                            controllerViewModel.model.y_cart_coord
+                        }, set: { (newVal) in
+                            controllerViewModel.model.y_cart_coord = newVal
+                            controllerViewModel.update_pos()
+                        }), in: -144.1...144.1) { _ in
+                            controllerViewModel.update_pos()
+                        }
+                        Text("\(controllerViewModel.model.y_cart_coord)")
+                    }
+                    Text("Z Coordinate")
+                    VStack {
+                        Slider(value: Binding(get: {
+                            controllerViewModel.model.z_cart_coord
+                        }, set: { (newVal) in
+                            controllerViewModel.model.z_cart_coord = newVal
+                            controllerViewModel.update_pos()
+                        }), in: 11.1...284.5) { _ in
+                            controllerViewModel.update_pos()
+                        }
+                        //                            Slider(value: $controllerViewModel.model.z_cart_coord)
+                        Text("\(controllerViewModel.model.z_cart_coord)")
+                    }
+                    Button("Start Initialization") {
+                        controllerViewModel.start_initialization()
+                    }
+                    Button("Start Detection") {
+                        controllerViewModel.start_detection()
+                    }
+                }
+                .opacity(controllerViewModel.is_connected ? 1 : 0)
+            }
+            .padding()
+            HStack {
+                Spacer()
+            }
+            ScrollView(.vertical) {
+                Text("\(controllerViewModel.log_message)")
+            }
+            ArrowKeyView(detectedObjectsViewModel: detectedObjectsViewModel, controllerViewModel: controllerViewModel)
         }
+        .padding(.all)
     }
 }
