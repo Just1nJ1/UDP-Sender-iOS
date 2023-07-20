@@ -32,8 +32,7 @@ class iOSControllerViewModel: ObservableObject {
     @Published var start_gripping: Bool = false
     @Published var target_pos: CGRect = CGRectNull
     
-    @Published var initialization: Bool = false
-    
+    @Published var is_calibrating: Bool = false
     @Published var is_detecting: Bool = false
     
     var cooldown: Bool = false
@@ -167,11 +166,11 @@ class iOSControllerViewModel: ObservableObject {
     }
     
     func start_initialization() -> () {
-        initialization = true
+        is_calibrating = true
     }
     
     func end_initialization(size: CGSize) -> () {
-        initialization = false
+        is_calibrating = false
         robot_camera_x_ratio = (robot_pos_br_x - robot_pos_tl_x) / Float(size.width)
         robot_camera_y_ratio = (robot_pos_br_y - robot_pos_tl_y) / Float(size.height)
     }

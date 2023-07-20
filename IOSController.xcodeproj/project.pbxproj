@@ -11,6 +11,10 @@
 		D03537062A568A470016EE57 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03537052A568A470016EE57 /* ContentView.swift */; };
 		D03537082A568A480016EE57 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D03537072A568A480016EE57 /* Assets.xcassets */; };
 		D035370B2A568A480016EE57 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D035370A2A568A480016EE57 /* Preview Assets.xcassets */; };
+		D03630702A69F5FE00B107D6 /* ControllingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D036306F2A69F5FE00B107D6 /* ControllingView.swift */; };
+		D03630722A69F69800B107D6 /* ArrowKeyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03630712A69F69800B107D6 /* ArrowKeyView.swift */; };
+		D03630742A69F70200B107D6 /* CalibrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03630732A69F70200B107D6 /* CalibrationView.swift */; };
+		D03630762A69F73700B107D6 /* ObjectDetectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03630752A69F73700B107D6 /* ObjectDetectionView.swift */; };
 		D04C18FD2A5D3A2C00C3C289 /* SBBML in Frameworks */ = {isa = PBXBuildFile; productRef = D04C18FC2A5D3A2C00C3C289 /* SBBML */; };
 		D04C18FF2A5D4F4E00C3C289 /* converted_model_640_detection_float32.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = D04C18FE2A5D4F4E00C3C289 /* converted_model_640_detection_float32.mlmodel */; };
 		D04C19022A5D4FCC00C3C289 /* DetectedObjectsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D04C19002A5D4FCC00C3C289 /* DetectedObjectsViewModel.swift */; };
@@ -24,6 +28,10 @@
 		D03537052A568A470016EE57 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D03537072A568A480016EE57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D035370A2A568A480016EE57 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		D036306F2A69F5FE00B107D6 /* ControllingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllingView.swift; sourceTree = "<group>"; };
+		D03630712A69F69800B107D6 /* ArrowKeyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArrowKeyView.swift; sourceTree = "<group>"; };
+		D03630732A69F70200B107D6 /* CalibrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationView.swift; sourceTree = "<group>"; };
+		D03630752A69F73700B107D6 /* ObjectDetectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetectionView.swift; sourceTree = "<group>"; };
 		D04C18FE2A5D4F4E00C3C289 /* converted_model_640_detection_float32.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = converted_model_640_detection_float32.mlmodel; sourceTree = "<group>"; };
 		D04C19002A5D4FCC00C3C289 /* DetectedObjectsViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DetectedObjectsViewModel.swift; sourceTree = "<group>"; };
 		D0B9F3762A588C9D00CE7053 /* iOSControllerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSControllerModel.swift; sourceTree = "<group>"; };
@@ -69,6 +77,10 @@
 				D03537092A568A480016EE57 /* Preview Content */,
 				D0B9F3762A588C9D00CE7053 /* iOSControllerModel.swift */,
 				D0B9F3782A588CD600CE7053 /* iOSControllerViewModel.swift */,
+				D036306F2A69F5FE00B107D6 /* ControllingView.swift */,
+				D03630712A69F69800B107D6 /* ArrowKeyView.swift */,
+				D03630732A69F70200B107D6 /* CalibrationView.swift */,
+				D03630752A69F73700B107D6 /* ObjectDetectionView.swift */,
 			);
 			path = UDPSender;
 			sourceTree = "<group>";
@@ -158,9 +170,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				D03537062A568A470016EE57 /* ContentView.swift in Sources */,
+				D03630702A69F5FE00B107D6 /* ControllingView.swift in Sources */,
 				D03537042A568A470016EE57 /* UDPSenderApp.swift in Sources */,
 				D0B9F3792A588CD600CE7053 /* iOSControllerViewModel.swift in Sources */,
+				D03630722A69F69800B107D6 /* ArrowKeyView.swift in Sources */,
+				D03630742A69F70200B107D6 /* CalibrationView.swift in Sources */,
 				D04C18FF2A5D4F4E00C3C289 /* converted_model_640_detection_float32.mlmodel in Sources */,
+				D03630762A69F73700B107D6 /* ObjectDetectionView.swift in Sources */,
 				D0B9F3772A588C9D00CE7053 /* iOSControllerModel.swift in Sources */,
 				D04C19022A5D4FCC00C3C289 /* DetectedObjectsViewModel.swift in Sources */,
 			);
