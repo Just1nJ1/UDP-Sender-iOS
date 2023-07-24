@@ -82,7 +82,7 @@ struct ControllingView: View {
                         //                            Slider(value: $controllerViewModel.model.z_cart_coord)
                         Text("\(controllerViewModel.model.z_cart_coord)")
                     }
-                    Button("Start Initialization") {
+                    Button("Start Calibration") {
                         controllerViewModel.start_initialization()
                     }
                     Button("Start Detection") {

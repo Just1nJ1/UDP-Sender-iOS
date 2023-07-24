@@ -115,9 +115,9 @@ class iOSControllerViewModel: ObservableObject {
         model.y_cart_coord = robot_y
         model.z_cart_coord = robot_z
         move_cartesian(x: robot_x, y: robot_y, z: robot_z)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.move_cartesian_delay) {
             self.suction_cup_on()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Constants.suction_cup_on_delay) {
                 self.model.z_cart_coord = robot_z + 50
                 self.move_cartesian(x: robot_x, y: robot_y, z: robot_z + 50)
             }
@@ -126,7 +126,7 @@ class iOSControllerViewModel: ObservableObject {
     
     func drop(x: Float, y: Float, z: Float) -> () {
         move_cartesian(x: x, y: y, z: z)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.move_cartesian_delay) {
             self.suction_cup_off()
         }
     }
@@ -195,23 +195,26 @@ class iOSControllerViewModel: ObservableObject {
     
     func picking_top_n(n: Int, objects: [CGRect]) -> () {
         let k: Int = n < objects.count ? n : objects.count
-        var count = 0
-        _ = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) {t in
+//        var count = 0
+//        _ = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) {t in
 //            NSLog("Helloworld\(count)")
-            self.grip(pos: objects[count])
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
-                self.drop(x: self.dest_pos_x[count % self.dest_pos_count], y: self.dest_pos_y[count % self.dest_pos_count], z: self.dest_pos_z[count % self.dest_pos_count])
-            }
-            count += 1
-            if count >= k {
-                t.invalidate()
+        for i in 0..<k {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * Constants.pick_delay) {
+                self.grip(pos: objects[i])
+                DispatchQueue.main.asyncAfter(deadline: .now() + Constants.grip_delay) {
+                    self.drop(x: self.dest_pos_x[i % self.dest_pos_count], y: self.dest_pos_y[i % self.dest_pos_count], z: self.dest_pos_z[i % self.dest_pos_count])
+                }
+                //            count += 1
+                //            if count >= k {
+                //                t.invalidate()
+                //            }
             }
         }
     }
     
-    func delay(_ delay: Double, closure:@escaping () -> ()) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(Int64(delay * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC), execute: closure)
-    }
+//    func delay(_ delay: Double, closure:@escaping () -> ()) {
+//        DispatchQueue.main.asyncAfter(deadline: .now() + Double(Int64(delay * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC), execute: closure)
+//    }
     
     func add_dest_pos() -> () {
         dest_pos_x.append(model.x_cart_coord)

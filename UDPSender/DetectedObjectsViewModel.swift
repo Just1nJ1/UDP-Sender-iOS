@@ -20,7 +20,7 @@ class DetectedObjectsViewModel: ObservableObject {
     
     init() {
         let modelFileName = "converted_model_640_detection_float32"  //
-        let configuration = ObjectDetectionServiceConfiguration(objectDetectionRate: 2)     // use custom config if desired
+        let configuration = ObjectDetectionServiceConfiguration(objectDetectionRate: 0)     // use custom config if desired
         self.objectDetectionService = ObjectDetectionService(modelFileName: modelFileName, configuration: configuration)
         
         detectedObjectsSubscription = objectDetectionService.detectedObjectsPublisher

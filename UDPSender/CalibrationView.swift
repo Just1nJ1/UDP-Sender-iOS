@@ -15,7 +15,7 @@ struct CalibrationView: View {
             ObjectDetectionView(detectedObjectsViewModel: detectedObjectsViewModel, controllerViewModel: controllerViewModel, with_detection: false)
             GeometryReader { geometry in
                 VStack {
-                    Button("End Initialization") {
+                    Button("End Calibration") {
                         controllerViewModel.end_initialization(size: geometry.size)
                     }
 //                    Spacer()

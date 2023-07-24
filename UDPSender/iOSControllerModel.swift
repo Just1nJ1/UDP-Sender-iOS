@@ -71,3 +71,12 @@ struct iOSControllerModel {
         }
     }
 }
+
+class Constants {
+    static let move_cartesian_delay: Double = 1
+    static let suction_cup_on_delay: Double = 1
+    static let suction_cup_off_delay: Double = 1
+    static let grip_delay: Double = move_cartesian_delay + suction_cup_on_delay + move_cartesian_delay
+    static let drop_delay: Double = move_cartesian_delay + suction_cup_off_delay
+    static let pick_delay: Double = grip_delay + drop_delay
+}
